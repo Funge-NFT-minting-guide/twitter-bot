@@ -5,7 +5,7 @@ import requests
 from copy import copy
 from  pprint import PrettyPrinter
 
-import twitter
+import tweepy
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
 
@@ -24,48 +24,57 @@ class TwitterBot:
         self.api_secret = copy(twitter_config['api_secret'])
         self.access_token = copy(twitter_config['access_token'])
         self.access_secret = copy(twitter_config['access_secret'])
+        self.bearer_token = copy(twitter_config['bearer_token'])
         self.mongo_client = self.get_connect()
         self.twitter_api = self.get_twitter_api()
+        self.twitter_client = tweepy.Client(self.bearer_token)
         self.re_tweet_content_url = re.compile(r'(https:\/\/t\.co\/\w{10})$')
         self.pprinter = PrettyPrinter()
 
 
     def get_connect(self):
-        return MongoClient(host=self.db_host, port=0, username=self.db_username, password=self.db_password)
+        return MongoClient(host=self.db_host, port=self.db_port, username=self.db_username, password=self.db_password)
+
+
+    def insert_one(self, collection, document):
+        return self.mongo_client[self.db_name][collection].insert_one(document)
 
 
     def get_twitter_api(self):
-        return twitter.Api(consumer_key=self.api_key, consumer_secret=self.api_secret, access_token_key=self.access_token, access_token_secret=self.access_secret)
+        auth = tweepy.OAuth1UserHandler(self.api_key, self.api_secret, self.access_token, self.access_secret)
+        return tweepy.API(auth)
 
 
-    def get_tweet_full_content(self, text):
-        url = self.re_tweet_content_url.findall(text)[0]
-        return url
-        r = requests.get(url)
-        if r.status_code != 200:
-            pass    # logging
+    def get_strem(self, stream_listener):
+        return tweepy.Stream(self.api_key, self.api_secret, self.access_token, self.access_secret, stream_listener)
 
-        bs = BeautifulSoup(r.text, 'html.parser')
 
     def is_exists(self, collection, query):
-        self.mongo_client[self.db_name][collection].findOne(query)
+        return self.mongo_client[self.db_name][collection].find_one(query)
+
+
+    def structure_tweet(self, tweet):
+        t_t = dict()
+        t_t['id'] = tweet.id
+        t_t['user'] = tweet.user.name
+        t_t['profile_image_url'] = tweet.user.profile_image_url
+        t_t['text'] = tweet.full_text
+        t_t['followers'] = tweet.user.followers_count
+        return t_t
 
 
     def search_tweets(self, collection, query, store_db=False):
-        tweets = self.twitter_api.GetSearch(term=query, count=10000)
+        tweets = self.twitter_api.search_tweets(q=query, tweet_mode='extended')
         
         for tweet in tweets:
-            t_t = dict()
-            t_t['id'] = tweet.id
-            t_t['user'] = tweet.user.name
-            t_t['profile_image_url'] = tweet.user.profile_image_url
-            t_t['text'] = self.get_tweet_full_content(tweet.text) if tweet.truncated else tweet.text
-
+            t_t = self.structure_tweet(tweet)
             if store_db:
                 if self.is_exists(collection, {'id': tweet.id}):
                     continue
-                self.mongo_client[self.db_name][collection].insert_one(t_t)
+                self.insert_one(collection, t_t)
             self.pprinter.pprint(t_t)
+
+
 
 
 
