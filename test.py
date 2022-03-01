@@ -9,8 +9,9 @@ from twitty import *
 
 bot = TwitterBot('test')
 
-#bot.search_tweets('test', '민팅 klay -nftart -filter:links -filter:replies -filter:retweets')
+bot.search_tweets('test', '민팅 klay -nftart -filter:links -filter:replies -filter:retweets', store_db=True)
 
+'''
 i = 0
 
 class StreamTwitter(tweepy.Stream):
@@ -37,3 +38,4 @@ class TStreamTwitter(tweepy.StreamingClient):
 #print(tsc.delete_rules('1498281142113665031'))
 #tsc.add_rules(tweepy.StreamRule('민팅'))
 
+'''

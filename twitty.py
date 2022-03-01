@@ -1,5 +1,6 @@
 import re
 import json
+import pytz
 import datetime
 import requests
 from copy import copy
@@ -55,11 +56,14 @@ class TwitterBot:
 
     def structure_tweet(self, tweet):
         t_t = dict()
-        t_t['id'] = tweet.id
+        t_t['id'] = tweet.id_str
+        t_t['created_at'] = tweet.created_at.astimezone(pytz.timezone('Asia/Seoul'))
         t_t['user'] = tweet.user.name
+        t_t['uid'] = tweet.user.id_str
         t_t['profile_image_url'] = tweet.user.profile_image_url
         t_t['text'] = tweet.full_text
         t_t['followers'] = tweet.user.followers_count
+        t_t['url'] = f'https://twitter.com/{tweet.user.screen_name}/status/{tweet.id}'
         return t_t
 
 
@@ -67,12 +71,13 @@ class TwitterBot:
         tweets = self.twitter_api.search_tweets(q=query, tweet_mode='extended')
         
         for tweet in tweets:
+            #self.pprinter.pprint(tweet)
             t_t = self.structure_tweet(tweet)
+            self.pprinter.pprint(t_t)
             if store_db:
-                if self.is_exists(collection, {'id': tweet.id}):
+                if self.is_exists(collection, {'id': tweet.id_str}):
                     continue
                 self.insert_one(collection, t_t)
-            self.pprinter.pprint(t_t)
 
 
 
