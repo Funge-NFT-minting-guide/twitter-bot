@@ -4,7 +4,8 @@ import pytz
 import datetime
 import requests
 from copy import copy
-from  pprint import PrettyPrinter
+import  pprint
+from dateutil import parser as date_parser
 
 import tweepy
 from bs4 import BeautifulSoup
@@ -14,13 +15,45 @@ from env.db_config import *
 from env.keys_and_tokens import *
 
 
+class StreamingTwitter(tweepy.StreamingClient):
+    def __init__(self, bearer_token, bot):
+        super().__init__(bearer_token)
+        self.bot = bot
+
+    
+    def structure_tweet(self, data, includes):
+        t_t = dict()
+        t_t['id'] = data['id']
+        t_t['created_at'] = date_parser.parse(data['created_at']).astimezone(pytz.timezone('Asia/Seoul'))
+        t_t['text'] = data['text']
+        t_t['user'] = includes['users'][0]['name']
+        t_t['uid'] = includes['users'][0]['id']
+        t_t['profile_image_url'] = includes['users'][0]['profile_image_url']
+        t_t['followers'] = includes['users'][0]['public_metrics']['followers_count']
+        t_t['url'] = f"https://twitter.com/{includes['users'][0]['username']}/status/{data['id']}"
+        return t_t
+
+
+    def on_data(self, status):
+        status = json.loads(status)
+        t_t = self.structure_tweet(status['data'], status['includes'])
+        pprint.pprint(t_t)
+        collection = status['matching_rules'][0]['tag']
+
+        if self.bot.store_db:
+            if self.bot.is_exists({'id': t_t['id']}):
+                return
+            self.bot.insert_one(collection, t_t)
+
+
 class TwitterBot:
-    def __init__(self, db_name):
+    def __init__(self, db_name, store_db=False):
         self.db_host = copy(db_config['host'])
         self.db_port = copy(db_config['port'])
         self.db_username = copy(db_config['username'])
         self.db_password = copy(db_config['password'])
         self.db_name = db_name
+        self.store_db = store_db
         self.api_key = copy(twitter_config['api_key'])
         self.api_secret = copy(twitter_config['api_secret'])
         self.access_token = copy(twitter_config['access_token'])
@@ -29,12 +62,12 @@ class TwitterBot:
         self.mongo_client = self.get_connect()
         self.twitter_api = self.get_twitter_api()
         self.twitter_client = tweepy.Client(self.bearer_token)
+        self.twitter_stream = StreamingTwitter(self.bearer_token, self)
         self.re_tweet_content_url = re.compile(r'(https:\/\/t\.co\/\w{10})$')
-        self.pprinter = PrettyPrinter()
 
 
     def get_connect(self):
-        return MongoClient(host=self.db_host, port=self.db_port, username=self.db_username, password=self.db_password)
+        return MongoClient(host=self.db_host, port=self.db_port, username=self.db_username, password=self.db_password, authSource=self.db_name)
 
 
     def insert_one(self, collection, document):
@@ -48,6 +81,14 @@ class TwitterBot:
 
     def get_strem(self, stream_listener):
         return tweepy.Stream(self.api_key, self.api_secret, self.access_token, self.access_secret, stream_listener)
+
+
+    def add_rules(self, rule, collection):
+        return self.twitter_stream.add_rules(tweepy.StreamRule(rule, tag=collection))
+
+
+    def stream_filter(self):
+        return self.twitter_stream.filter(expansions='author_id', tweet_fields=['created_at'], user_fields=['username', 'profile_image_url', 'public_metrics', 'entities'])
 
 
     def is_exists(self, collection, query):
@@ -71,44 +112,10 @@ class TwitterBot:
         tweets = self.twitter_api.search_tweets(q=query, tweet_mode='extended')
         
         for tweet in tweets:
-            #self.pprinter.pprint(tweet)
+            #self.pprint.pprint(tweet)
             t_t = self.structure_tweet(tweet)
             self.pprinter.pprint(t_t)
-            if store_db:
+            if self.store_db:
                 if self.is_exists(collection, {'id': tweet.id_str}):
                     continue
                 self.insert_one(collection, t_t)
-
-
-
-
-
-'''
-account = '@meta_kongz'
-print(twitter_api.GetUserTimeline(screen_name=account, count=100, include_rts=False, exclude_replies=False))
-
-def search_minting(query):
-    query = '민팅 klay -nftart -filter:links -filter:replies -filter:retweets'
-    #keyword_necesary = ['민팅']
-    tweets = twitter_api.GetSearch(term=query, count=10000)
-    #[print(tweets[i].text+'\n'+'-'*60) for i in range(len(tweets))]
-    for tweet in tweets:
-        print(f'id: {tweet.id}')
-        print(f'Project: {tweet.user.name}')
-        print(f'Agenda: {tweet.text}')
-        print('-'*40)
-    print(tweets[-2])
-
-query = ['nft', 'minting']
-
-stream = twitter_api.GetStreamFilter(track=query)
-while True:
-    for tweets in stream:
-        try:
-            print(tweets['text'])
-            print('-------------------------------------')
-
-        except Exception as e:
-            print(e)
-            break
-'''
