@@ -1,10 +1,10 @@
 import re
 import json
 import pytz
+import  pprint
 import datetime
 import requests
 from copy import copy
-import  pprint
 from dateutil import parser as date_parser
 
 import tweepy
@@ -109,12 +109,12 @@ class TwitterBot:
 
 
     def search_tweets(self, collection, query, store_db=False):
-        tweets = self.twitter_api.search_tweets(q=query, tweet_mode='extended')
+        tweets = self.twitter_api.search_tweets(q=query, count=10000, tweet_mode='extended')
         
         for tweet in tweets:
             #self.pprint.pprint(tweet)
             t_t = self.structure_tweet(tweet)
-            self.pprinter.pprint(t_t)
+            pprint.pprint(t_t)
             if self.store_db:
                 if self.is_exists(collection, {'id': tweet.id_str}):
                     continue
