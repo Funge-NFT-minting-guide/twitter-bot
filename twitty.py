@@ -108,8 +108,11 @@ class TwitterBot:
         return t_t
 
 
-    def search_tweets(self, collection, query, store_db=False):
-        tweets = self.twitter_api.search_tweets(q=query, count=10000, tweet_mode='extended')
+    def search_tweets(self, collection, query, full=False, store_db=False):
+        if not full:
+            tweets = self.twitter_api.search_tweets(q=query, count=10000, tweet_mode='extended')
+        else:
+            tweets = self.twitter_api.search_full_archive('full', query)
         
         for tweet in tweets:
             #self.pprint.pprint(tweet)
