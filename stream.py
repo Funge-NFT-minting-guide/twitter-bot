@@ -1,7 +1,7 @@
 from twitty import *
 
 
-bot = TwitterBot('test')
+bot = TwitterBot('test', store_db=True)
 
 
 bot.add_rules('민팅 klay -nftart -is:reply -is:retweet', "minting")
