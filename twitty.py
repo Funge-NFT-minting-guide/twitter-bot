@@ -1,15 +1,13 @@
-import re
 import json
-import pytz
 import  pprint
 import datetime
 import requests
 from copy import copy
-from dateutil import parser as date_parser
 
+import pytz
 import tweepy
-from bs4 import BeautifulSoup
 from pymongo import MongoClient
+from dateutil import parser as date_parser
 
 from env.db_config import *
 from env.keys_and_tokens import *
@@ -30,7 +28,6 @@ class StreamingTwitter(tweepy.StreamingClient):
         t_t['uid'] = includes['users'][0]['id']
         t_t['profile_image_url'] = includes['users'][0]['profile_image_url']
         t_t['followers'] = includes['users'][0]['public_metrics']['followers_count']
-        t_t['url'] = f"https://twitter.com/{includes['users'][0]['username']}/status/{data['id']}"
         return t_t
 
 
@@ -41,7 +38,7 @@ class StreamingTwitter(tweepy.StreamingClient):
         collection = status['matching_rules'][0]['tag']
 
         if self.bot.store_db:
-            if self.bot.is_exists({'id': t_t['id']}):
+            if self.bot.is_exists(collection, {'id': t_t['id']}):
                 return
             self.bot.insert_one(collection, t_t)
 
@@ -63,7 +60,7 @@ class TwitterBot:
         self.twitter_api = self.get_twitter_api()
         self.twitter_client = tweepy.Client(self.bearer_token)
         self.twitter_stream = StreamingTwitter(self.bearer_token, self)
-        self.re_tweet_content_url = re.compile(r'(https:\/\/t\.co\/\w{10})$')
+        #self.re_tweet_content_url = re.compile(r'(https:\/\/t\.co\/\w{10})$')
 
 
     def get_connect(self):
