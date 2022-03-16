@@ -28,6 +28,7 @@ class StreamingTwitter(tweepy.StreamingClient):
         t_t['uid'] = includes['users'][0]['id']
         t_t['profile_image_url'] = includes['users'][0]['profile_image_url']
         t_t['followers'] = includes['users'][0]['public_metrics']['followers_count']
+        t_t['url'] = f"https://twitter.com/{includes['users'][0]['username']}/status/{data['id']}"
         return t_t
 
 
