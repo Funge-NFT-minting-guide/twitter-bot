@@ -1,4 +1,5 @@
 import json
+import logging
 import  pprint
 import datetime
 import requests
@@ -11,6 +12,9 @@ from dateutil import parser as date_parser
 
 from env.db_config import *
 from env.keys_and_tokens import *
+
+
+logging.basicConfig(filename='/var/log/twitty.log', format='[%(asctime)s][%(levelname)s|%(filename)s:%(lineno)s] - %(message)s', level=logging.DEBUG)
 
 
 class StreamingTwitter(tweepy.StreamingClient):
