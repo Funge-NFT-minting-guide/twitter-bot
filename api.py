@@ -19,7 +19,10 @@ minting = api.model('Minting', {
     'uid': fields.String(),
     'profile_image_url': fields.String(),
     'followers': fields.Integer(),
-    'url': fields.String()
+    'url': fields.String(),
+    'invalid': fields.Boolean(),
+    'outdated': fields.Boolean(),
+    'processed': fields.Boolean()
     })
 
 
@@ -45,12 +48,18 @@ class TwittyDAO:
 
 DAO = TwittyDAO()
 
+parser = reqparse.RequestParser()
+parser.add_argument('order', type=int, default=-1, choices=(-1, 1))
+parser.add_argument('offset', type=int, default=0)
+parser.add_argument('max_limit', type=int, default=10)
 
-@api.route('/minting')
+
+@api.route('/minting/tweets')
 class Minting(Resource):
     @api.marshal_list_with(minting)
     def get(self):
-        return list(DAO.find('minting', {}))
+        args = parser.parse_args()
+        return list(DAO.find('minting_tweets', {'processed': False}).sort('created_at', args['order']).skip(args['offset']).limit(args['max_limit']))
 
     '''
     @api.expect(minting, validate=True)
@@ -59,7 +68,7 @@ class Minting(Resource):
         print(api.payload)
     '''
 
-@api.route('/minting/search/<string:date>')
+@api.route('/minting/tweets/search/<string:date>')
 class MintingSearchData(Resource):
     @api.marshal_list_with(minting)
     def get(self, data):
@@ -67,12 +76,13 @@ class MintingSearchData(Resource):
 
 
 
-@api.route('/minting/<string:_id>')
+@api.route('/minting/tweets/<string:_id>')
 class MintingOne(Resource):
     @api.marshal_with(minting)
     def get(self, _id):
-        ret = DAO.find_one('minting', {'id': _id})
-        return ret if ret else abort(404, 'No result found.')
+        ret = DAO.find_one('minting_tweets', {'id': _id})
+        print(ret)
+        return [ret] if ret else abort(404, 'No result found.')
             
 
 
