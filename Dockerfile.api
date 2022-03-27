@@ -1,0 +1,10 @@
+FROM python:3
+
+WORKDIR /app
+
+COPY api.py /app
+
+RUN python3 -m pip install -U pip
+RUN pip3 install pymongo flask flask-restx
+
+CMD ["python", "api.py"]
